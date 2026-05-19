@@ -423,11 +423,17 @@ fun SettingsScreen(
                 val emblemSize = settings.emblemSizeState.value
                 SettingsButton(
                     icon = Icons.Default.Brush,
-                    title = tr("Емблема головного екрана", "Header emblem"),
+                    title = tr("Емблема та назва в шапці", "Header emblem & title"),
                     subtitle = if (emblemSet)
-                        tr("Користувацька · Розмір: ${emblemSize}dp", "Custom · Size: ${emblemSize}dp")
+                        tr(
+                            "Користувацька емблема · Розмір: ${emblemSize}dp · Колір/зсуви назви",
+                            "Custom emblem · Size: ${emblemSize}dp · Title color / offsets"
+                        )
                     else
-                        tr("Стандартна · Розмір: ${emblemSize}dp", "Default · Size: ${emblemSize}dp"),
+                        tr(
+                            "Стандартна емблема · Розмір: ${emblemSize}dp · Колір/зсуви назви",
+                            "Default emblem · Size: ${emblemSize}dp · Title color / offsets"
+                        ),
                     onClick = { showEmblemDialog = true }
                 )
             }
@@ -1104,11 +1110,8 @@ private fun TileIconsDialog(
             TileLabel("sale", "Продаж", "Sale"),
             TileLabel("stock", "Склад", "Stock"),
             TileLabel("clients", "Клієнти", "Clients"),
-            TileLabel("reports", "Звіти", "Reports"),
             TileLabel("suppliers", "Постачальники", "Suppliers"),
-            TileLabel("expenses", "Витрати", "Expenses"),
-            TileLabel("collection", "Моя колекція", "Collection"),
-            TileLabel("documents", "Документи", "Documents")
+            TileLabel("collection", "Моя колекція", "Collection")
         )
     }
 
@@ -1280,7 +1283,7 @@ private fun EmblemDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(tr("Емблема головного екрана", "Header emblem")) },
+        title = { Text(tr("Емблема та назва в шапці", "Header emblem & title")) },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -1288,9 +1291,9 @@ private fun EmblemDialog(
             ) {
                 Text(
                     if (emblemPath.isNotBlank())
-                        tr("Поточна: користувацька", "Current: custom")
+                        tr("Поточна емблема: користувацька", "Current emblem: custom")
                     else
-                        tr("Поточна: стандартна", "Current: default"),
+                        tr("Поточна емблема: стандартна", "Current emblem: default"),
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )

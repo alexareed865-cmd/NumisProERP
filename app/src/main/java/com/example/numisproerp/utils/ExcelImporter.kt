@@ -82,32 +82,38 @@ class ExcelImporter(
     suspend fun importFromUri(context: Context, uri: Uri, productsOnly: Boolean = false): ImportResult {
         return withContext(Dispatchers.IO) {
             try {
-                context.contentResolver.openInputStream(uri)?.use { rawStream ->
-                    val buffered = BufferedInputStream(rawStream)
-                    // Самоповідомлення ZIP за магічним байтами 'PK\x03\x04'.
-                    // ZIP-бекапи містять `database.xlsx` + `photos/*`, чисті .xlsx якраз
-                    // теж є ZIP (в сенсі формату), але в них всередині нема файлу `database.xlsx`.
-                    // Тому ми робимо єдиний прохід ZIP і якщо є `database.xlsx` — користуємо його,
-                    // інакше розгортаємо як звичайний кіпії .xlsx через WorkbookFactory.
-                    buffered.mark(8)
-                    val sig = ByteArray(4)
-                    val read = buffered.read(sig)
-                    buffered.reset()
-                    val isZipMagic = read == 4 && sig[0] == 0x50.toByte() && sig[1] == 0x4B.toByte() &&
-                            sig[2] == 0x03.toByte() && sig[3] == 0x04.toByte()
+                // Спершу читаємо все в пам'ять. Так ми:
+                //  1) можемо двічі переграти потік — спочатку як ZIP-бекап, потім як
+                //     звичайний .xlsx (якщо ZIP-розпакування не знайшло `database.xlsx`);
+                //  2) уникаємо помилки "Stream closed" — ZipInputStream.close() закриває
+                //     обгорнутий BufferedInputStream, тому повторно використовувати
+                //     `openInputStream(uri)` цей же буфер не виходить. Раніше це
+                //     призводило до того, що звичайні .xlsx (PK-магічні байти, але без
+                //     `database.xlsx` всередині) не імпортувалися взагалі.
+                val allBytes = context.contentResolver.openInputStream(uri)?.use { rawStream ->
+                    rawStream.readBytes()
+                } ?: return@withContext ImportResult(false, "Не вдалося відкрити файл")
 
-                    if (isZipMagic) {
-                        // Спробуємо знайти `database.xlsx`; якщо розпакуємо фото, ретурн мапу
-                        // (відносний_шлях в ZIP -> новий_абсолютний_шлях на диску).
-                        val extracted = tryExtractZipBackup(context, buffered)
-                        if (extracted != null) {
-                            return@withContext ByteArrayInputStream(extracted.workbookBytes).use { wbStream ->
-                                importFromInputStream(wbStream, productsOnly, extracted.photoPathRemap)
-                            }
+                // Самоповідомлення ZIP за магічним байтами 'PK\x03\x04'.
+                // ZIP-бекапи містять `database.xlsx` + `photos/*`, чисті .xlsx теж є
+                // ZIP в сенсі формату, але в них всередині нема файлу `database.xlsx`.
+                val isZipMagic = allBytes.size >= 4 &&
+                        allBytes[0] == 0x50.toByte() && allBytes[1] == 0x4B.toByte() &&
+                        allBytes[2] == 0x03.toByte() && allBytes[3] == 0x04.toByte()
+
+                if (isZipMagic) {
+                    val extracted = ByteArrayInputStream(allBytes).use { zipStream ->
+                        tryExtractZipBackup(context, zipStream)
+                    }
+                    if (extracted != null) {
+                        return@withContext ByteArrayInputStream(extracted.workbookBytes).use { wbStream ->
+                            importFromInputStream(wbStream, productsOnly, extracted.photoPathRemap)
                         }
                     }
-                    return@withContext importFromInputStream(buffered, productsOnly, emptyMap())
-                } ?: ImportResult(false, "Не вдалося відкрити файл")
+                }
+                return@withContext ByteArrayInputStream(allBytes).use { wbStream ->
+                    importFromInputStream(wbStream, productsOnly, emptyMap())
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
                 ImportResult(false, "Помилка імпорту: ${e.message}")

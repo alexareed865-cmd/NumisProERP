@@ -305,8 +305,11 @@ class SettingsManager @Inject constructor(
 
     // Позиція емблеми по горизонталі (dp). 0 — по замовчуванню (зліва).
     // Позитивні значення зсувають емблему праворуч, негативні — ліворуч.
+    // Завантажене значення жорстко обмежуємо новим діапазоном — інакше після
+    // звуження меж (±600 → ±250) старі бекапи могли б тримати емблему
+    // далеко за край.
     private val _emblemOffsetX: MutableState<Int> =
-        mutableStateOf(prefs.getInt(KEY_EMBLEM_OFFSET_X, 0))
+        mutableStateOf(prefs.getInt(KEY_EMBLEM_OFFSET_X, 0).coerceIn(MIN_EMBLEM_OFFSET, MAX_EMBLEM_OFFSET))
 
     val emblemOffsetXState: MutableState<Int>
         get() = _emblemOffsetX
@@ -321,7 +324,7 @@ class SettingsManager @Inject constructor(
 
     // Позиція емблеми по вертикалі (dp). 0 — по замовчуванню.
     private val _emblemOffsetY: MutableState<Int> =
-        mutableStateOf(prefs.getInt(KEY_EMBLEM_OFFSET_Y, 0))
+        mutableStateOf(prefs.getInt(KEY_EMBLEM_OFFSET_Y, 0).coerceIn(MIN_EMBLEM_OFFSET, MAX_EMBLEM_OFFSET))
 
     val emblemOffsetYState: MutableState<Int>
         get() = _emblemOffsetY
@@ -380,7 +383,10 @@ class SettingsManager @Inject constructor(
 
     // Зсув заголовка головного екрана по горизонталі (dp). 0 — без зсуву.
     private val _dashboardTitleOffsetX: MutableState<Int> =
-        mutableStateOf(prefs.getInt(KEY_DASHBOARD_TITLE_OFFSET_X, 0))
+        mutableStateOf(
+            prefs.getInt(KEY_DASHBOARD_TITLE_OFFSET_X, 0)
+                .coerceIn(MIN_DASHBOARD_TITLE_OFFSET, MAX_DASHBOARD_TITLE_OFFSET)
+        )
 
     val dashboardTitleOffsetXState: MutableState<Int>
         get() = _dashboardTitleOffsetX
@@ -395,7 +401,10 @@ class SettingsManager @Inject constructor(
 
     // Зсув заголовка головного екрана по вертикалі (dp).
     private val _dashboardTitleOffsetY: MutableState<Int> =
-        mutableStateOf(prefs.getInt(KEY_DASHBOARD_TITLE_OFFSET_Y, 0))
+        mutableStateOf(
+            prefs.getInt(KEY_DASHBOARD_TITLE_OFFSET_Y, 0)
+                .coerceIn(MIN_DASHBOARD_TITLE_OFFSET, MAX_DASHBOARD_TITLE_OFFSET)
+        )
 
     val dashboardTitleOffsetYState: MutableState<Int>
         get() = _dashboardTitleOffsetY
@@ -700,10 +709,12 @@ class SettingsManager @Inject constructor(
         // Розширений діапазон розміру емблеми (до ~всієї ширини шапки), щоб
         // користувач міг зробити її значно більшою, ніж дозволяв старий ліміт 160dp.
         const val MAX_EMBLEM_SIZE = 400
-        // Межі зсуву емблеми в dp. Розширено, щоб емблему можна було переміщати
-        // практично від краю до краю екрана і помітно вгору/вниз.
-        const val MIN_EMBLEM_OFFSET = -600
-        const val MAX_EMBLEM_OFFSET = 600
+        // Межі зсуву емблеми в dp. Раніше було ±600dp, але такий широкий
+        // діапазон надто чутливий: невеликий рух повзунка зрушував емблему
+        // далеко за край шапки. ±250dp дає достатньо ходу і при цьому
+        // зберігає точність керування.
+        const val MIN_EMBLEM_OFFSET = -250
+        const val MAX_EMBLEM_OFFSET = 250
         // Назва "NumisProERP" в шапці за замовчуванням рендерилася на 26.sp.
         const val DEFAULT_DASHBOARD_TITLE_SIZE = 26
         const val MIN_DASHBOARD_TITLE_SIZE = 10
@@ -711,10 +722,9 @@ class SettingsManager @Inject constructor(
         // дуже великий "напис" поряд з емблемою (раніше було 40sp).
         const val MAX_DASHBOARD_TITLE_SIZE = 96
         // Межі зсуву тексту заголовка головного екрана у dp. Узгоджені
-        // з межами емблеми, щоб напис можна було тягати в тих самих
-        // діапазонах.
-        const val MIN_DASHBOARD_TITLE_OFFSET = -600
-        const val MAX_DASHBOARD_TITLE_OFFSET = 600
+        // з межами емблеми (±250dp).
+        const val MIN_DASHBOARD_TITLE_OFFSET = -250
+        const val MAX_DASHBOARD_TITLE_OFFSET = 250
         // Стандартний розмір заголовків "Швидкий доступ" / "Останні операції" — 18.sp.
         const val DEFAULT_DASHBOARD_HEADER_FONT_SIZE = 18
         const val MIN_DASHBOARD_HEADER_FONT_SIZE = 12
@@ -743,7 +753,7 @@ class SettingsManager @Inject constructor(
          */
         val TILE_IDS = listOf(
             "purchase", "sale", "stock", "clients",
-            "reports", "suppliers", "expenses", "collection", "documents"
+            "suppliers", "collection"
         )
     }
 }
